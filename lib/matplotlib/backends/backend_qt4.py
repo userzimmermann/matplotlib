@@ -227,7 +227,8 @@ class FigureCanvasQT(QtGui.QWidget, FigureCanvasBase):
             print('FigureCanvasQt: ', figure)
         _create_qApp()
 
-        QtGui.QWidget.__init__(self)
+        # figure= needed for PyQt5
+        QtGui.QWidget.__init__(self, figure=figure)
         FigureCanvasBase.__init__(self, figure)
         self.figure = figure
         self.setMouseTracking(True)

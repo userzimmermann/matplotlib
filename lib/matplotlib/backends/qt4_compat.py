@@ -13,7 +13,9 @@ QT_API_PYQT = 'PyQt4'       # API is not set here; Python 2.x default is V 1
 QT_API_PYQTv2 = 'PyQt4v2'   # forced to Version 2 API
 QT_API_PYSIDE = 'PySide'    # only supports Version 2 API
 
-ETS = dict(pyqt=QT_API_PYQTv2, pyside=QT_API_PYSIDE)
+QT_API_PYQT5 = 'PyQt5'
+
+ETS = dict(pyqt=QT_API_PYQTv2, pyside=QT_API_PYSIDE, pyqt5=QT_API_PYQT5)
 
 # If the ETS QT_API environment variable is set, use it.  Note that
 # ETS requires the version 2 of PyQt4, which is not the platform
@@ -25,8 +27,9 @@ if QT_API_ENV is not None:
         QT_API = ETS[QT_API_ENV]
     except KeyError:
         raise RuntimeError(
-          'Unrecognized environment variable %r, valid values are: %r or %r' %
-                           (QT_API_ENV, 'pyqt', 'pyside'))
+          'Unrecognized environment variable %r,'
+          ' valid values are: %r or %r or %r' %
+                           (QT_API_ENV, 'pyqt', 'pyside', 'pyqt5'))
 else:
     # No ETS environment, so use rcParams.
     QT_API = rcParams['backend.qt4']
@@ -39,7 +42,7 @@ _getSaveFileName = None
 _sip_imported = False
 
 # Now perform the imports.
-if QT_API in (QT_API_PYQT, QT_API_PYQTv2):
+if QT_API in (QT_API_PYQT, QT_API_PYQTv2, QT_API_PYQT5):
     try:
         import sip
         _sip_imported = True
@@ -48,7 +51,7 @@ if QT_API in (QT_API_PYQT, QT_API_PYQTv2):
         QT_API = QT_API_PYSIDE
 
 if _sip_imported:
-    if QT_API == QT_API_PYQTv2:
+    if QT_API in (QT_API_PYQTv2, QT_API_PYQT5):
         if QT_API_ENV == 'pyqt':
             cond = ("Found 'QT_API=pyqt' environment variable. "
                     "Setting PyQt4 API accordingly.\n")
@@ -67,7 +70,29 @@ if _sip_imported:
             res = 'QVariant API v2 specification failed. Defaulting to v1.'
             verbose.report(cond+res, 'helpful')
 
-    from PyQt4 import QtCore, QtGui
+    if QT_API == QT_API_PYQT5:
+        from PyQt5 import QtCore, QtGui as _QtGui, QtWidgets
+
+        QtCore.SIGNAL = QtCore.SLOT = lambda s: s
+
+        def connect(signalowner, signal, slotowner, slot):
+            # Get actual signal/slot for given 'signal()'/'slot()' strings:
+            signal = getattr(signalowner, signal[:-2])
+            slot = getattr(slotowner, slot[:-2])
+            signal.connect(slot)
+
+        QtCore.QObject.connect = connect
+
+        class QtGui(object):
+            def __getattr__(self, name):
+                try:
+                    return getattr(_QtGui, name)
+                except AttributeError:
+                    return getattr(QtWidgets, name)
+
+        QtGui = QtGui()
+    else:
+        from PyQt4 import QtCore, QtGui
 
     # Alias PyQt-specific functions for PySide compatibility.
     QtCore.Signal = QtCore.pyqtSignal
