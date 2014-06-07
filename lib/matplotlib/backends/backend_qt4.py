@@ -33,6 +33,7 @@ from .qt4_compat import QtCore, QtGui, _getSaveFileName, __version__
 from matplotlib.backends.qt4_editor.formsubplottool import UiSubplotTool
 
 backend_version = __version__
+QT5 = backend_version.startswith('5')
 
 # SPECIAL_KEYS are keys that do *not* return their unicode name
 # instead they have manually specified names
@@ -227,8 +228,11 @@ class FigureCanvasQT(QtGui.QWidget, FigureCanvasBase):
             print('FigureCanvasQt: ', figure)
         _create_qApp()
 
-        # figure= needed for PyQt5
-        QtGui.QWidget.__init__(self, figure=figure)
+        if QT5:
+            # PyQt5 wants figure= ... why? :)
+            QtGui.QWidget.__init__(self, figure=figure)
+        else:
+            QtGui.QWidget.__init__(self)
         FigureCanvasBase.__init__(self, figure)
         self.figure = figure
         self.setMouseTracking(True)
